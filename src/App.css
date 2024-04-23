@@ -8,11 +8,12 @@
 
 h1 {
   margin-top: -60px;
-  font-family: 'Arcade';
+  font-family: 'DreamSparks' !important;
   font-size: 20px !important;
+  color: grey;
 }
 h2 {
-  font-family: 'Arcade';
+  font-family: 'DreamSparks';
 
 }
 
@@ -102,3 +103,5 @@ img {
 .item:hover {
   box-shadow: 5px 5px 20px rgb(216, 216, 216);
 }
+
+*, *::before, *::after { box-sizing: border-box; }

@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 import noise from './static_noise.gif'
+import { useOpenConnectModal } from '@0xsequence/kit'
+import { useDisconnect, useAccount } from 'wagmi'
+import { SequenceIndexer } from '@0xsequence/indexer'
 
 let canvas: any;
 let init: any;
@@ -98,7 +101,7 @@ class Blob {
     this._color = value;
   }
   get color() {
-    return this._color || '#424242';
+    return this._color || '#1E0D4F';
   }
 
   set canvas(value) {
@@ -234,6 +237,11 @@ class Point {
   }}
 let count: any = 0;
 function App() {
+  const { setOpenConnectModal } = useOpenConnectModal()
+ 
+  const { isConnected, address } = useAccount()
+  const {disconnect} = useDisconnect()
+ 
   const [canMint, setCanMint] = useState(false)
   const [showReveals, setShowReveals] = useState(false)
   // const [hasColor, setHasColor] = useState(false)
@@ -244,7 +252,7 @@ function App() {
     document.getElementById('crowns')!.appendChild(canvas);
   
     let resize = function () {
-      canvas.width = window.innerWidth;
+      canvas.width = 1000;
       canvas.height = window.innerHeight;
     };
     window.addEventListener('resize', resize);
@@ -308,7 +316,7 @@ function App() {
   };
   const [color, setColor] = useState('')
   useEffect(() => {
-    if(count == 0){
+    if(count == 0 && isConnected){
       count++
       blob = new Blob();
       // setTimeout(() => {
@@ -321,7 +329,7 @@ function App() {
       !showReveals && init();
     }
 
-  }, [showReveals])
+  }, [showReveals, isConnected])
 
   const changeColor = (color: any) => {
     hasColor  = true
@@ -336,8 +344,54 @@ function App() {
 
   }, [color])
 
-  const [items, setItems] = useState([])
-  const [collectibles, _]: any = useState<any>([noise,noise,noise,noise,noise,noise,noise]);
+  const [items, setItems] = useState<any>([])
+  const [collectibles, setCollectibles] = useState<any>([
+    'https://metadata.sequence.app/projects/23487/collections/52/tokens/0/image.png',
+    'https://metadata.sequence.app/projects/23487/collections/52/tokens/1/image.png',
+    'https://metadata.sequence.app/projects/23487/collections/52/tokens/2/image.png',
+    'https://metadata.sequence.app/projects/23487/collections/52/tokens/3/image.png',
+    'https://metadata.sequence.app/projects/23487/collections/52/tokens/4/image.png',
+    'https://metadata.sequence.app/projects/23487/collections/52/tokens/5/image.png',
+    'https://metadata.sequence.app/projects/23487/collections/52/tokens/6/image.png'
+]);
+
+useEffect(() => {
+  setTimeout(async () => {
+    const newCollectibles = [...collectibles];
+
+  for(let i = 0; i < collectibles.length; i ++) {
+
+    // collectibles.forEach((url: any, index: any) => {
+    
+    try {
+      console.log('pre response')
+      const response = await fetch(collectibles[i])
+      // .then(response => {
+        console.log('response')
+      if (!response.ok) {
+        console.log(' ok')
+
+      // const newCollectibles = [...collectibles];
+      newCollectibles[i] = noise;
+        // Replace the URL with noise if the fetch is not successful
+        // const newCollectibles = [...collectibles];
+        // newCollectibles[i] = noise;
+        // setCollectibles(newCollectibles);
+      }
+    }catch(err){
+      console.log('not ok')
+
+      // const newCollectibles = [...collectibles];
+      // newCollectibles[i] = noise;
+      // setCollectibles(newCollectibles);
+    }
+  }
+  setCollectibles(newCollectibles)
+
+}, 0)
+}, [showReveals]); // Empty
+
+  const [isMinting, setIsMinting] = useState(false)
   useEffect(() => {
     setItems(collectibles.map((item: any)=> {
       return <div className={`grid-item`} onClick={() => {
@@ -348,19 +402,118 @@ function App() {
       </>
         </div>
     }))
-  }, [])
+  }, [collectibles])
+
   useEffect(() => {
 
   }, [items])
-  
+  const mint = async () => {
+    console.log(color)
+    let id;
+
+    switch(color){
+      case 'yellow':
+        id = 0
+        break;
+      case 'gold':
+        id = 1
+        break;
+      case 'red':
+        id = 2
+        break;
+      case 'orange':
+        id = 3
+        break;
+      case 'green':
+        id = 4
+        break;
+      case 'aqua':
+        id = 5
+        break;
+      case '#B026FF':
+        id = 6
+        break;
+    }
+
+    console.log(id)
+
+    const data = {
+      address: address,
+      tokenId: id
+    };
+
+    setIsMinting(true)
+    const res = await fetch('https://spring-sunset-3a71.tpin.workers.dev', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+
+    console.log(await res.text())
+    setIsMinting(false)
+
+
+  }
+
+  useEffect(() => {
+
+  }, [isMinting])
+
+  const [zeroBalance, setZeroBalance] = useState(true)
+
+  useEffect(() => {
+    setTimeout(async () => {
+      const indexer = new SequenceIndexer('https://avalanche-testnet-indexer.sequence.app', 'jflHSuIP97vcdmfqDBxUogZAAAAAAAAAA')
+ 
+      // try any account address you'd like :)
+      const accountAddress = address
+       
+      // query Sequence Indexer for all token balances of the account on Polygon
+      const tokenBalances = await indexer.getTokenBalances({
+        accountAddress: accountAddress,
+        contractAddress: '0xfc321fe902873b799b1094f6d8aac372a14fb7a5',
+        includeMetadata: true
+      })
+      console.log('tokens in your account:', tokenBalances)
+
+      if(tokenBalances.balances.length > 0){
+        console.log('setting zero balance')
+        setZeroBalance(false)
+      }
+    }, 0)
+  }, [])
+
+  useEffect(() => {
+
+  }, [zeroBalance])
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    // Toggle the visibility every 2000 milliseconds
+    const interval = setInterval(() => {
+      setIsVisible(prev => !prev); // Toggle the state
+    }, 2000);
+
+    return () => clearInterval(interval); // Cleanup the interval on component unmount
+  }, []);
+  const login = () => {
+    setOpenConnectModal(true)
+  }
   return (
     <>
-      {
+    {
+      isConnected ? 
+      <>{
         !showReveals ? <>
-        <div style={{position: 'fixed', top: '30px', right: '10px', cursor: 'pointer'}}>
-        <h1 onClick={() => setShowReveals(true)}>see reveals</h1>
+        <div style={{position: 'fixed', top: '30px', left: '10px', cursor: 'pointer'}}>
+        <h1 onClick={() => setShowReveals(true)}>see appears</h1>
       </div>
-        <h1>metadata reveal: on supply</h1>
+      <div style={{position: 'fixed', top: '30px', right: '10px', cursor: 'pointer'}}>
+        <h1 onClick={() => disconnect()}>sign out</h1>
+      </div>
+        <h1>metadata appear: on supply</h1>
       <h1>fluid crowns ERC1155 edition</h1>
         <div id="crowns">
       </div>
@@ -381,8 +534,21 @@ function App() {
       <div className='grid-container'>
         {items}
       </div>
-      </> }
-      {canMint && <button style={{background: color, color: color == 'yellow' ? 'black' : 'white'}}>mint</button>}
+      </> } </>
+      : <>
+        <br/>
+        <br/>
+        <br/>
+        <br/>
+        <br/>
+        <h1>
+      {isVisible ? "'" : ''}mint <span style={{ visibility: isVisible ? 'visible' : 'hidden', width: '200px' }}>appear'</span> blob crowns
+    </h1>
+      
+      </>
+    }
+      {!isConnected ? <><br/><br/><br/><br/><button onClick={() => login()} style={{width: '150px', height: '50px'}}>login</button></> : null}
+      {!isMinting&&canMint&&zeroBalance && <button onClick={() => mint()} style={{background: color, color: color == 'yellow' ? 'black' : 'white'}}>mint</button>}
 
     </>
   )
